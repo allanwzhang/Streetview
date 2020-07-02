@@ -5,21 +5,34 @@ import java.nio.file.*;
 
 public class streetview {
 	static double totalImages = 0;
+	static int borough = -1;
 	
 	public static void main(String[] args) throws IOException {
 		BufferedReader f = new BufferedReader(new FileReader("Centerline.csv"));
 		PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("Metadata.txt")));
+		Scanner sc = new Scanner(System.in);
+		
+		System.out.println("Choose a borough");
+		System.out.println("Manhattan = 1");
+		System.out.println("Bronx = 2");
+		System.out.println("Brooklyn = 3");
+		System.out.println("Queens = 4");
+		System.out.println("Staten Island = 5");
+		System.out.println("Please give the corresponding number");
+
+		//Can add while loop to make sure input is correct
+		borough = Integer.parseInt(sc.nextLine());
 		
 		TreeMap<String, ArrayList<Street>> streets = parseData(f);
 		findHeading(streets);
 		
-		System.out.println("Time: " + System.currentTimeMillis());
+//		System.out.println("Time: " + System.currentTimeMillis());
 		for(String key : streets.keySet()) {
 			System.out.println(key);
 		}
 		
 		System.out.println("Give me a street from the list");
-		Scanner sc = new Scanner(System.in);
+		
 		String input = sc.nextLine().toUpperCase();
 		while(!streets.containsKey(input)) {
 			System.out.println("That isn't a valid street");
@@ -63,12 +76,12 @@ public class streetview {
 	static TreeMap<String, ArrayList<Street>> parseData(BufferedReader f) throws IOException {
 		TreeMap<String, ArrayList<Street>> streets = new TreeMap<>();
 		f.readLine();
-		System.out.println("Time: " + System.currentTimeMillis());
+//		System.out.println("Time: " + System.currentTimeMillis());
 		while(f.ready()) {
 			ArrayList<String> curr = split(f.readLine());
 			int type = Integer.parseInt(curr.get(18));
-			if(type != 1 || Integer.parseInt(curr.get(14)) == 0 || Integer.parseInt(curr.get(13)) != 1) continue;
-			Street toAdd = new Street(findPoints(curr.get(3)), removeEW(curr.get(10)), Integer.parseInt(curr.get(14)) / 3.281);
+			if(type != 1 || Integer.parseInt(curr.get(14)) == 0 || Integer.parseInt(curr.get(13)) != borough) continue;
+			Street toAdd = new Street(findPoints(curr.get(3)), curr.get(10), Integer.parseInt(curr.get(14)) / 3.281);
 			toAdd.avDist = findAvDist(toAdd.points);
 			toAdd.fov = calculateFOV(toAdd);
 			while(toAdd.fov > 60) {
@@ -84,14 +97,8 @@ public class streetview {
 				streets.put(toAdd.name, newStreet);
 			}
 		}
-		System.out.println("Time: " + System.currentTimeMillis());
+//		System.out.println("Time: " + System.currentTimeMillis());
 		return streets;
-	}
-	
-	static String removeEW(String name) {
-		if(name.split(" ").length < 2) return name;
-		if(name.split(" ")[0].equals("E") || name.split(" ")[0].equals("W")) return name.substring(2);
-		return name;
 	}
 	
 	static int calculateFOV(Street s) {
