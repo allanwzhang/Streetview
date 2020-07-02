@@ -12,4 +12,12 @@ public class Street {
 		name = n;
 		width = w;
 	}
+	
+	@Override
+	public String toString() {
+//		for(double[] arr : points) {
+//			System.out.println(arr[0] + ", " + arr[1] + " heading: " + arr[2]);
+//		}
+		return "Street name: " + name + ", Width: " + width + ", Fov: " + fov;
+	}
 }
