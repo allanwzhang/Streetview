@@ -25,10 +25,10 @@ import matplotlib.patches as patches
 from functools import cmp_to_key
 import csv
 import math
-#import geopy.distance
+import geopy.distance
 
 def getLonLat():
-    return [40.726265, -73.989360]
+    return [40.730476, -73.998427]
 
 def getPanoId(lonLat):
     url = "http://maps.google.com/cbk?output=xml&ll=" + str(lonLat[0]) + "," + str(lonLat[1]) + "&dm=1"
@@ -161,12 +161,12 @@ def computeDepthMap(header, indices, planes):
     cos_phi = np.empty(w)
 
     for y in range(h):
-        theta = (h - y - 0.5) / h * np.pi
+        theta = (h - y - 1) / (h - 1) * np.pi
         sin_theta[y] = np.sin(theta)
         cos_theta[y] = np.cos(theta)
 
     for x in range(w):
-        phi = (w - x - 0.5) / w * 2 * np.pi + np.pi / 2
+        phi = (w - x - 1) / (w - 1) * 2 * np.pi + np.pi / 2
         sin_phi[x] = np.sin(phi)
         cos_phi[x] = np.cos(phi)
 
@@ -235,15 +235,15 @@ def latLonMap(pointCloud):
                 continue
             rdx = dx*np.cos(np.radians(yaw)) + dy*np.sin(np.radians(yaw))
             rdy = -1*dx*np.sin(np.radians(yaw)) + dy*np.cos(np.radians(yaw))
-            dlat = rdy / 111111;
-            dlon = rdx / (111111 * np.cos(np.radians(clat)));
+            dlat = rdy / 111111
+            dlon = rdx / (111111 * np.cos(np.radians(clat)))
             latLon[2*(y*512 + x)] = dlat + clat
             latLon[2*(y*512 + x) + 1] = dlon + clon
     return latLon
 
 def findImageCoord(lat, lon, yaw, clat, clon, pointCloud):
-    dy = 111111 * (lat - clat);
-    dx = 111111 * np.cos(np.radians(clat)) * (lon - clon);
+    dy = 111111 * (lat - clat)
+    dx = 111111 * np.cos(np.radians(clat)) * (lon - clon)
     
     dangle = np.degrees(np.arctan(dy/dx))
     #check if dx and dy is 0??
@@ -264,10 +264,10 @@ def findImageCoord(lat, lon, yaw, clat, clon, pointCloud):
     x = (int)((offset / 360) * 512)
     
     dist = np.sqrt(dx**2+dy**2)
-    minD = dist
+    minD = 99999999999999999
     miny = -1
     inPict = False
-    for y in range(256):
+    for y in range(255, -1, -1):
         if(pointCloud[(512*y + x) * 3] != 9999999999999999999.0):
             rdx = pointCloud[(512*y + x) * 3]*np.cos(np.radians(yaw)) + pointCloud[(512*y + x) * 3 + 1]*np.sin(np.radians(yaw))
             rdy = -1*pointCloud[(512*y + x) * 3]*np.sin(np.radians(yaw)) + pointCloud[(512*y + x) * 3 + 1]*np.cos(np.radians(yaw))
@@ -388,7 +388,7 @@ def drawImage():
             ax.add_patch(square)
     
     plt.show()
-    saveImagePath = "C:/Allan/Streetview/labeledImages/" + pano_id + ".jpeg"
+    saveImagePath = "C:/Allan/Streetview/dataCollection/" + pano_id + ".jpeg"
     plt.savefig(saveImagePath, bbox_inches='tight', pad_inches=0)
 
 lonLat = getLonLat()
@@ -414,7 +414,7 @@ latlon = findLatLon(output_file + ".xml")
 clat = latlon[0]
 clon = latlon[1]
 yaw = latlon[2]
-
+print(clat, clon)
 if(yaw > 180):
     yaw = yaw - 180
 else:
@@ -422,24 +422,62 @@ else:
 
 latLonMap = latLonMap(pointCloud)
 print("latLonMap created")
-bounds = boundingBox(clat, clon, 0.02)
+bounds = boundingBox(clat, clon, 0.04)
 
 '''
 treeData = '2015_Street_Tree_Census_-_Tree_Data.csv'
 treeLL = getTreeData(treeData)
 writeSortedTreeData(treeLL)
 '''
+
 treeLL = getTreeDataFromSorted('sortedTreeLL.csv')
 
 latRange = [latBSearch(treeLL, bounds[0]), latBSearch(treeLL, bounds[2])]
 treeCoords = findTreesInBox(treeLL, latRange, bounds[1], bounds[3])
 print("found tree coords")
-drawImage()
+#drawImage()
 
 def findTreeCoords():
     for ar in treeCoords:
         ic = findImageCoord(ar[0], ar[1], yaw, clat, clon, pointCloud)
         if ic != [9999999999999999999.0, 9999999999999999999.0]:
-            print(ic, end = ", ")
+            print(ic, ar, end = ", ")
 
 #findTreeCoords()
+
+def findFacade(latLonMap):
+    facade = []
+    for x in range(512):
+        prevLat = -1
+        prevLon = -1
+        for y in range(255, -1, -1):
+            currLat = latLonMap[2*(y*512 + x)]
+            currLon = latLonMap[2*(y*512 + x) + 1]
+            if(currLat == 0 or currLon == 0):
+                continue
+            #print(prevLat, currLat, prevLon, currLon)
+            dist = geopy.distance.distance([prevLat, prevLon], [currLat, currLon]).km*100000
+            if(prevLon != -1 and prevLat != -1 and dist < 1):
+                facade.append([x, y])
+                break
+            prevLat = currLat
+            prevLon = currLon
+    return facade
+
+def drawFacade(facade):
+    data = plt.imread(output_file + ".jpeg")
+    fig, ax = plt.subplots(figsize=(32, 16), dpi=96)
+    ax.imshow(data, interpolation='none')
+    plt.axis('off')
+    for ar in facade:
+        square = patches.Rectangle((ar[0] * 32, ar[1] * 32), 50, 50, color='RED')
+        ax.add_patch(square)
+    
+    plt.show()
+    saveImagePath = "C:/Allan/Streetview/facade/" + pano_id + ".jpeg"
+    plt.savefig(saveImagePath, bbox_inches='tight', pad_inches=0)
+
+#print(latLonMap[2*(127*512 + 100)], latLonMap[2*(127*512 + 100) + 1])
+#print(latLonMap[2*(128*512 + 100)], latLonMap[2*(128*512 + 100) + 1])
+#drawFacade([[100, 127], [100, 129]])
+drawFacade(findFacade(latLonMap))
