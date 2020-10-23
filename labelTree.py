@@ -26,9 +26,10 @@ from functools import cmp_to_key
 import csv
 import math
 import geopy.distance
+import sys
 
 def getLonLat():
-    return [40.730476, -73.998427]
+    return [40.716012, -74.000290]
 
 def getPanoId(lonLat):
     url = "http://maps.google.com/cbk?output=xml&ll=" + str(lonLat[0]) + "," + str(lonLat[1]) + "&dm=1"
@@ -147,7 +148,6 @@ def parsePlanes(header, depthMap):
     return {"planes": planes, "indices": indices}
 
 def computeDepthMap(header, indices, planes):
-
     v = [0, 0, 0]
     w = header["width"]
     h = header["height"]
@@ -410,6 +410,9 @@ data = parsePlanes(header, depthMapData)
 depthMap = computeDepthMap(header, data["indices"], data["planes"])
 pointCloud = depthMap["pointCloud"]
 print("depthMap and pointCloud created")
+
+np.savetxt('test.txt', pointCloud) 
+
 latlon = findLatLon(output_file + ".xml")
 clat = latlon[0]
 clon = latlon[1]
@@ -474,10 +477,36 @@ def drawFacade(facade):
         ax.add_patch(square)
     
     plt.show()
-    saveImagePath = "C:/Allan/Streetview/facade/" + pano_id + ".jpeg"
+    saveImagePath = "C:/Allan/Streetview/planes/" + pano_id + ".jpeg"
     plt.savefig(saveImagePath, bbox_inches='tight', pad_inches=0)
 
-#print(latLonMap[2*(127*512 + 100)], latLonMap[2*(127*512 + 100) + 1])
-#print(latLonMap[2*(128*512 + 100)], latLonMap[2*(128*512 + 100) + 1])
-#drawFacade([[100, 127], [100, 129]])
-drawFacade(findFacade(latLonMap))
+#drawFacade(findFacade(latLonMap))
+
+def facadePlanes(indices):
+    result = []
+    for x in range(512):
+        arr = []
+        for y in range(255, -1, -1):
+            if indices[y * 512 + x] not in arr:
+                result.append([x,y])
+                arr.append(indices[y * 512 + x])
+    return result
+
+edgePlanes = []
+
+def floodfill(indices, x, y, prev, visited):
+    if x < 0 or y < 0 or x >= 512 or y >= 256 or (y * 512 + x) in visited:
+        return
+    visited.add(y * 512 + x)
+    if indices[y * 512 + x] != prev:
+        edgePlanes.append([x, y])
+    floodfill(indices, x + 1, y, indices[y * 512 + x], visited)
+    floodfill(indices, x - 1, y, indices[y * 512 + x], visited)
+    floodfill(indices, x, y + 1, indices[y * 512 + x], visited)
+    floodfill(indices, x, y - 1, indices[y * 512 + x], visited)
+                
+drawFacade(facadePlanes(data["indices"]))
+#sys.setrecursionlimit(15000)
+
+#floodfill(data["indices"], 0, 0, 0, set())
+#drawFacade(edgePlanes)
