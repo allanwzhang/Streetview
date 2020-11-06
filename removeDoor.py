@@ -236,6 +236,11 @@ def removeDoors(planes, box, label, isRight):
                 label.pop(i)
                 i-=1
         i+=1
+    for ar in box:
+        ar[0] = ar[0] * 1000 / 3584 
+        ar[2] = ar[2] * 1000 / 3584
+        ar[1] = ar[1] * 1000 / 2560
+        ar[3] = ar[3] * 1000 / 2560
     
 
 lonLat = getLonLat()
