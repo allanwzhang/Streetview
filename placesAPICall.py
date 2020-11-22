@@ -28,7 +28,6 @@ def callAPI(latlonArray):
     ll = []
     for ar in data["results"]:
         if "business_status" not in ar:
-            print(ar["name"])
             continue
         lat = ar["geometry"]["location"]["lat"]
         lon = ar["geometry"]["location"]["lng"]
