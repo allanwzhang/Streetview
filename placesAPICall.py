@@ -15,7 +15,7 @@ def callAPI(latlonArray):
     #radius in meters
     radius = "50"
     
-    url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=" + latlon + "&radius=" + radius + "&key="
+    url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=" + latlon + "&radius=" + radius + "&key=AIzaSyCuu8pFPZLLg4ZNlweRUkG38tQvMNgQ8is"
     r = urllib.request.urlopen(url)
     data = json.loads(r.read().decode(r.info().get_param('charset') or 'utf-8'))
     
@@ -27,7 +27,9 @@ def callAPI(latlonArray):
     minDist = 99999999999
     ll = []
     for ar in data["results"]:
-        #name = ar["name"]
+        if "business_status" not in ar:
+            print(ar["name"])
+            continue
         lat = ar["geometry"]["location"]["lat"]
         lon = ar["geometry"]["location"]["lng"]
         dist = geopy.distance.distance([lat, lon], [float(latlon.split(",")[0]), float(latlon.split(",")[1])]).km*1000
@@ -44,7 +46,7 @@ with open("C:\Allan\Streetview\pythonCode\latlon.csv", 'r') as csvfile:
         if(row[1] == "1" and row[3] != "0" and row[4] != "0"):
             doorLL.append((float(row[3]), float(row[4])))
             count+=1
-            if count == 10:
+            if count == 1:
                 break
 
 storeLL = []
