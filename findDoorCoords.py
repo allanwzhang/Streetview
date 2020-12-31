@@ -47,7 +47,7 @@ def parseMultistring(polygon):
             curr[0] = curr[0][1:]
         if curr[1][-1] == ")":
             curr[1] = curr[1][:-1]
-        result.append(utm.from_latlon(float(curr[0]), float(curr[1]))[0:2])
+        result.append(utm.from_latlon(float(curr[1]), float(curr[0]))[0:2])
     return result
 
 def pDistance(x, y, x1, y1, x2, y2):
@@ -112,8 +112,8 @@ def closestFootprint(latlon, store1, store2):
             y = adj
     slope = (y[1] - x[1]) / (y[0] - x[0])
     angle = np.rad2deg(np.arctan(slope))
-    print(utm.to_latlon(*(x[0], x[1], 18, 'T')))
-    print(utm.to_latlon(*(y[0], y[1], 18, 'T')))
+    #print(utm.to_latlon(*(x[0], x[1], 18, 'T')))
+    #print(utm.to_latlon(*(y[0], y[1], 18, 'T')))
     return angle
 
 def nearestBusinessAngle(coords, possible):
@@ -149,13 +149,15 @@ def findDoorCoords(coords, angle, possible):
             adj = storeEdges[(i+1)%len(storeEdges)]
             #print(curr, adj, doorUTM, angle)
             intersect = lineRayIntersectionPoint(doorUTM, [np.cos(np.deg2rad(angle)), np.sin(np.deg2rad(angle))], curr, adj)
-            if intersect == []:
+            if len(intersect) == 0:
                 continue
-            if magnitude(intersect) < minDist:
-                minDist = magnitude(intersect)
+            currDist = np.sqrt((intersect[0] - doorUTM[0])**2+(intersect[1]-doorUTM[1])**2)
+            if currDist < minDist:
+                minDist = currDist
                 result = intersect
-                print("what")
     return result
+
+#https://stackoverflow.com/questions/14307158/how-do-you-check-for-intersection-between-a-line-segment-and-a-line-ray-emanatin
 
 def lineRayIntersectionPoint(rayOrigin, rayDirection, point1, point2):
     # Convert to numpy arrays
@@ -172,7 +174,7 @@ def lineRayIntersectionPoint(rayOrigin, rayDirection, point1, point2):
     t1 = np.cross(v2, v1) / np.dot(v2, v3)
     t2 = np.dot(v1, v3) / np.dot(v2, v3)
     if t1 >= 0.0 and t2 >= 0.0 and t2 <= 1.0:
-        return [rayOrigin + t1 * rayDirection]
+        return rayOrigin + t1 * rayDirection
     return []
 
 grid = csvToArray("data\Final\gridData.csv")
@@ -208,7 +210,7 @@ if angle < 0:
 
 result = findDoorCoords(camCoord, angle, possible)
 toLL = (result[0], result[1], 18, 'T')
-print(utm.to_latlon(toLL))
+print(utm.to_latlon(*toLL))
 
 
 
