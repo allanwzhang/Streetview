@@ -16,8 +16,10 @@ Created on Mon Dec  7 21:03:55 2020
 import csv
 import utm
 import math
-import geopy.distance
 import numpy as np
+import json
+import requests
+#import geopy.distance
 
 def csvToArray(fileName):
     data = []
@@ -112,10 +114,9 @@ def closestFootprint(latlon, store1, store2):
             y = adj
     slope = (y[1] - x[1]) / (y[0] - x[0])
     angle = np.rad2deg(np.arctan(slope))
-    #print(utm.to_latlon(*(x[0], x[1], 18, 'T')))
-    #print(utm.to_latlon(*(y[0], y[1], 18, 'T')))
     return angle
 
+'''
 def nearestBusinessAngle(coords, possible):
     minDist2 = 99999999999
     minI2 = -1
@@ -135,7 +136,7 @@ def nearestBusinessAngle(coords, possible):
             minDist2 = dist
             minI2 = i
     return closestFootprint(coords, possible[minI], possible[minI2])
-
+'''
 def findDoorCoords(coords, angle, possible):
     minDist = 999999999
     result = []
@@ -143,11 +144,10 @@ def findDoorCoords(coords, angle, possible):
     for ar in possible:
         if len(ar) == 4:
             continue
-        storeEdges = parseMultistring(ar[4])
+        storeEdges = parseMultistring(ar[4])        
         for i in range(len(storeEdges)):
             curr = storeEdges[i]
             adj = storeEdges[(i+1)%len(storeEdges)]
-            #print(curr, adj, doorUTM, angle)
             intersect = lineRayIntersectionPoint(doorUTM, [np.cos(np.deg2rad(angle)), np.sin(np.deg2rad(angle))], curr, adj)
             if len(intersect) == 0:
                 continue
@@ -158,7 +158,6 @@ def findDoorCoords(coords, angle, possible):
     return result
 
 #https://stackoverflow.com/questions/14307158/how-do-you-check-for-intersection-between-a-line-segment-and-a-line-ray-emanatin
-
 def lineRayIntersectionPoint(rayOrigin, rayDirection, point1, point2):
     # Convert to numpy arrays
     rayOrigin = np.array(rayOrigin, dtype=np.float)
@@ -177,32 +176,41 @@ def lineRayIntersectionPoint(rayOrigin, rayDirection, point1, point2):
         return rayOrigin + t1 * rayDirection
     return []
 
+#https://stackoverflow.com/questions/64775547/extract-depthmap-from-google-street-view
+def getHeading(lon, lat):
+        url = "https://maps.googleapis.com/maps/api/js/GeoPhotoService.SingleImageSearch?pb=!1m5!1sapiv3!5sUS!11m2!1m1!1b0!2m4!1m2!3d{0:}!4d{1:}!2d50!3m10!2m2!1sen!2sGB!9m1!1e2!11m4!1m3!1e2!2b1!3e2!4m10!1e1!1e2!1e3!1e4!1e8!1e6!5m1!1e2!6m1!1e2&callback=_xdc_._v2mub5"
+        url = url.format(lat, lon)
+        resp = requests.get(url, proxies=None)
+        line = resp.text.replace("/**/_xdc_._v2mub5 && _xdc_._v2mub5( ", "")[:-2]
+        jdata = json.loads(line)
+        return jdata[1][5][0][1][2][0]
+
 grid = csvToArray("data\Final\gridData.csv")
 PLUTOArray = csvToArray("data\Final\PLUTOFootprint.csv")
 
-camCoord = [40.7180441,-74.0048158]
+camCoord = [40.756146,-73.981240]
 
-doorCoord = [3993, 4470]
+doorCoord = [11041, 4470]
 
 curr = utm.from_latlon(camCoord[0], camCoord[1])
 
 surroundingI = []
-for i in range(-1, 2):
-    currIndex = findIndex(curr[0]+i*50, curr[1])
-    if currIndex not in surroundingI:
-        surroundingI.append(currIndex)
-    currIndex = findIndex(curr[0], curr[1]+i*50)
-    if currIndex not in surroundingI:
-        surroundingI.append(currIndex)
-    
+for i in range(-2, 3):
+    for j in range(-2, 3):
+        currIndex = findIndex(curr[0]+i*100, curr[1]+j*100)
+        if currIndex not in surroundingI:
+            surroundingI.append(currIndex)
+
 possible = []
 for i in surroundingI:
     for bus in grid[i]:
         possible.append(PLUTOArray[int(bus)])
 
-angle = nearestBusinessAngle(camCoord, possible)
+angle = getHeading(camCoord[0], camCoord[1])
+angle = 270 - angle
 if angle < 0:
-    angle = 180 + angle
+    angle += 360
+    
 cangle = (doorCoord[0] / 16384) * 360
 angle = angle - cangle
 if angle < 0:
@@ -211,6 +219,3 @@ if angle < 0:
 result = findDoorCoords(camCoord, angle, possible)
 toLL = (result[0], result[1], 18, 'T')
 print(utm.to_latlon(*toLL))
-
-
-
