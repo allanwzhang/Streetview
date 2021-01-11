@@ -86,7 +86,7 @@ def magnitude(vector):
 
 def norm(vector):
    return np.array(vector)/magnitude(np.array(vector))
-
+'''
 def closestFootprint(latlon, store1, store2):
     doorUTM = utm.from_latlon(float(latlon[0]), float(latlon[1]))[0:2]
     store1Edges = parseMultistring(store1[4])
@@ -116,7 +116,6 @@ def closestFootprint(latlon, store1, store2):
     angle = np.rad2deg(np.arctan(slope))
     return angle
 
-'''
 def nearestBusinessAngle(coords, possible):
     minDist2 = 99999999999
     minI2 = -1
@@ -177,7 +176,7 @@ def lineRayIntersectionPoint(rayOrigin, rayDirection, point1, point2):
     return []
 
 #https://stackoverflow.com/questions/64775547/extract-depthmap-from-google-street-view
-def getHeading(lon, lat):
+def getHeading(lat, lon):
         url = "https://maps.googleapis.com/maps/api/js/GeoPhotoService.SingleImageSearch?pb=!1m5!1sapiv3!5sUS!11m2!1m1!1b0!2m4!1m2!3d{0:}!4d{1:}!2d50!3m10!2m2!1sen!2sGB!9m1!1e2!11m4!1m3!1e2!2b1!3e2!4m10!1e1!1e2!1e3!1e4!1e8!1e6!5m1!1e2!6m1!1e2&callback=_xdc_._v2mub5"
         url = url.format(lat, lon)
         resp = requests.get(url, proxies=None)
@@ -185,37 +184,40 @@ def getHeading(lon, lat):
         jdata = json.loads(line)
         return jdata[1][5][0][1][2][0]
 
-grid = csvToArray("data\Final\gridData.csv")
-PLUTOArray = csvToArray("data\Final\PLUTOFootprint.csv")
-
-camCoord = [40.756146,-73.981240]
-
-doorCoord = [11041, 4470]
-
-curr = utm.from_latlon(camCoord[0], camCoord[1])
-
-surroundingI = []
-for i in range(-2, 3):
-    for j in range(-2, 3):
-        currIndex = findIndex(curr[0]+i*100, curr[1]+j*100)
-        if currIndex not in surroundingI:
-            surroundingI.append(currIndex)
-
-possible = []
-for i in surroundingI:
-    for bus in grid[i]:
-        possible.append(PLUTOArray[int(bus)])
-
-angle = getHeading(camCoord[0], camCoord[1])
-angle = 270 - angle
-if angle < 0:
-    angle += 360
+def main(camCoord, doorX):
+    #Local Files
+    grid = csvToArray("data\Final\gridData.csv")
+    PLUTOArray = csvToArray("data\Final\PLUTOFootprint.csv")
     
-cangle = (doorCoord[0] / 16384) * 360
-angle = angle - cangle
-if angle < 0:
-    angle += 360
+    curr = utm.from_latlon(camCoord[0], camCoord[1])
+    
+    surroundingI = []
+    for i in range(-2, 3):
+        for j in range(-2, 3):
+            currIndex = findIndex(curr[0]+i*100, curr[1]+j*100)
+            if currIndex not in surroundingI:
+                surroundingI.append(currIndex)
+    
+    possible = []
+    for i in surroundingI:
+        for bus in grid[i]:
+            possible.append(PLUTOArray[int(bus)])
+    
+    angle = getHeading(camCoord[0], camCoord[1])
+    angle = 270 - angle
+    if angle < 0:
+        angle += 360
+        
+    cangle = (doorX / 16384) * 360
+    angle = angle - cangle
+    if angle < 0:
+        angle += 360
+    
+    result = findDoorCoords(camCoord, angle, possible)
+    toLL = (result[0], result[1], 18, 'T')
+    return utm.to_latlon(*toLL)
 
-result = findDoorCoords(camCoord, angle, possible)
-toLL = (result[0], result[1], 18, 'T')
-print(utm.to_latlon(*toLL))
+camCoord = [40.716938,-73.989048]
+doorX = 6264
+
+print(main(camCoord, doorX))
